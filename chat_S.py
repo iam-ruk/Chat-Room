@@ -7,7 +7,6 @@ HOST=''
 PORT=9999
 SOCKET_LIST=[]
 d={}
-client_no=0
 lock=threading.Lock()
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -16,24 +15,24 @@ server_socket.bind((HOST, PORT))
 server_socket.listen(10)
 
 SOCKET_LIST.append(server_socket)
+SOCKET_LIST.append(sys.stdin)
 print("chat server started on port 9999")
 
 def broadcast(server_socket, sock, message):
 	for socket in SOCKET_LIST:
 	
-		if socket != server_socket and socket != sock :
+		if socket != server_socket and socket != sock and socket !=sys.stdin :
 			try :
 				socket.send(message.encode('utf-8'))
 			except :
 	
-				print('df') 
 				socket.close()
 	
 				if socket in SOCKET_LIST:
 					SOCKET_LIST.remove(socket)
 
 def user_connection_request(sockfd):
-	global client_no,d
+	global d
 	while True:
 		username=sockfd.recv(1024).decode('utf-8')
 		if username not in d:
@@ -46,9 +45,8 @@ def user_connection_request(sockfd):
 	
 	lock.acquire()
 
-	client_no+=1
-	d[username]=client_no
 	SOCKET_LIST.append(sockfd)
+	d[username]=sockfd
 	print("client connected ",username)
 	broadcast(server_socket, sockfd, "%s entered our chatting room\n" % username)
 
@@ -57,13 +55,26 @@ def user_connection_request(sockfd):
 
 
 while True:
-	ready_to_read, ready_to_write, in_error = select.select(SOCKET_LIST, [], [], 0)
+	ready_to_read, ready_to_write, in_error = select.select(SOCKET_LIST, [], [],0)
 	for sock in ready_to_read:
 
 		if sock == server_socket:
 			sockfd, addr = server_socket.accept()
 			t=threading.Thread(target=user_connection_request,args=(sockfd,))
-			t.start()		
+			t.start()
+		
+		elif sock == sys.stdin:
+				
+			user_del=sys.stdin.readline().strip()
+			print(user_del)
+			print(d)
+			if user_del in d:
+				sock_del=d[user_del]
+				
+				SOCKET_LIST.remove(sock_del)
+				sock_del.close()
+				broadcast(server_socket, sock_del, "%s left our chatting room\n" % user_del)				
+
 
 		else:
 

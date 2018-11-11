@@ -18,6 +18,9 @@ s.send(username.encode('utf-8'))
 response=s.recv(1024).decode('utf-8')
 while True:
 	print(response)
+	if not response:
+		print('Disconnected from the server')
+		sys.exit()
 	m=re.match('Username accepted',response,re.I)
 	if m is not None:
 		break
